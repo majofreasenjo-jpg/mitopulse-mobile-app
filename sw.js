@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mitopulse-v30-cache-v7';
+const CACHE_NAME = 'mitopulse-v30-cache-v8';
 const urlsToCache = [
     './index.html',
     'https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js',
