@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MitoPulse | Identity Anchor</title>
+    <!-- PWA MANIFEST -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3067/3067443.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Inter:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0a0a0c;
+            --card: #141418;
+            --text: #ffffff;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 0.2rem;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .orb-box {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            background: radial-gradient(circle, var(--primary), transparent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px var(--primary);
+            animation: breathe 4s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 1;
+                box-shadow: 0 0 70px var(--primary);
+            }
+        }
+
+        .pulse-active {
+            background: var(--success);
+            box-shadow: 0 0 100px var(--success);
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 1.25rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        #log {
+            font-family: monospace;
+            font-size: 0.6rem;
+            color: var(--success);
+            opacity: 0.7;
+            height: 60px;
+            overflow-y: hidden;
+            margin-top: 1rem;
+        }
+
+        #setup-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            text-align: center;
+            gap: 2rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="setup-screen">
+        <h1 style="font-family: 'Orbitron';">MITOPULSE</h1>
+        <p style="opacity: 0.6; font-size: 0.9rem;">Sistemas de Identidad Living Network. Landmark 30 Definitive.</p>
+        <button class="btn" style="width: 100%;" onclick="initialize()">ANCLAR DISPOSITIVO</button>
+    </div>
+
+    <div class="container">
+        <div class="header">STATUS: ACTIVE</div>
+
+        <div class="orb-box" id="orb">
+            <span style="font-family: 'Orbitron'; font-size: 0.8rem; font-weight: 700;">CONNECTED</span>
+        </div>
+
+        <div class="card">
+            <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-bottom: 0.5rem;">
+                Criptografía de Dispositivo</div>
+            <div style="font-weight: 700; font-size: 1.2rem;" id="user-id">---</div>
+            <div id="log">Aguardando señales de vida...</div>
+        </div>
+
+        <button class="btn" onclick="sendPulse()">EMITIR PULSO MANUAL</button>
+    </div>
+
+    <script>
+        const API_BASE = "https://mitopulse-web.onrender.com";
+        let identity = null;
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered', reg))
+                    .catch(err => console.log('SW Failed', err));
+            });
+        }
+
+        function addLog(msg) {
+            const log = document.getElementById('log');
+            log.innerHTML = `> ${msg}<br>` + log.innerHTML.split('<br>').slice(0, 3).join('<br>');
+        }
+
+        async function initialize() {
+            const keyPair = nacl.sign.keyPair();
+            const userId = "node_" + Math.floor(Math.random() * 9999);
+            const payload = {
+                user_id: userId,
+                device_id: "mobile_standalone",
+                pubkey_b64: nacl.util.encodeBase64(keyPair.publicKey)
+            };
+
+            identity = { ...payload, privateKey: nacl.util.encodeBase64(keyPair.secretKey) };
+            localStorage.setItem('mitopulse_v30_id', JSON.stringify(identity));
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('user-id').textContent = userId;
+            addLog("Identidad Local de Usuario Creada.");
+            startHeartbeat();
+        }
+
+        async function sendPulse() {
+            if (!identity) return;
+            const packet = {
+                user_id: identity.user_id,
+                scenario: "legit_transfer",
+                amount: 0,
+                device_reality: 95,
+                started_at: Date.now() - 5000,
+                click_count: Math.floor(Math.random() * 5) + 3,
+                key_count: 0,
+                move_count: 30,
+                interaction_entropy: 0.8,
+                hesitation: 0.1,
+                urgency: 0.1,
+                dictation_risk: 0,
+                routine_break: 0,
+                social_overlap: 0.8,
+                temporal_alignment: 0.9,
+                context_fit: 0.9,
+                interaction_coherence: 0.9
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/evaluate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(packet)
+                });
+                if (res.ok) {
+                    const orb = document.getElementById('orb');
+                    orb.classList.add('pulse-active');
+                    setTimeout(() => orb.classList.remove('pulse-active'), 500);
+                    addLog("Pulso de Presencia (MVP v7) Verificado.");
+                } else {
+                    addLog("El Servidor MVP rechazó el pulso.");
+                }
+            } catch (e) { addLog("Error de red."); }
+        }
+
+        function startHeartbeat() { setInterval(sendPulse, 8000); }
+
+        window.onload = () => {
+            const saved = localStorage.getItem('mitopulse_v30_id');
+            if (saved) {
+                identity = JSON.parse(saved);
+                document.getElementById('setup-screen').classList.add('hidden');
+                document.getElementById('user-id').textContent = identity.user_id;
+                startHeartbeat();
+            }
+        }
+    </script>
+</body>
+
+</html>
