@@ -31,8 +31,12 @@ h1 {font-size: 28px; margin: 0 0 16px; font-weight: 300; background: linear-grad
 <button class="btn btn-secondary" onclick="emitCrossPulse()">CONECTAR CON NODO</button>
 </div>
 <script>
-let nodeId='node_'+Math.floor(1000+Math.random()*9000);
-document.getElementById('nodeId').textContent=nodeId;
+let nodeId = localStorage.getItem("mitopulse_node_id");
+if (!nodeId) {
+  nodeId = 'node_' + Math.floor(1000 + Math.random() * 9000);
+  localStorage.setItem("mitopulse_node_id", nodeId);
+}
+document.getElementById('nodeId').textContent = nodeId;
 function log(msg){document.getElementById('log').textContent='> '+msg;}
 function clog(msg){document.getElementById('crosslog').textContent='> '+msg;}
 async function emitPulse(){
